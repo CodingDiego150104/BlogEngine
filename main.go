@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -21,6 +22,7 @@ var (
 
 func main() {
 	// Log to see if the main function is executed
+	fmt.Println("Avvio server")
 	log.Println("Starting server...")
 
 	initDB()         // Initialize the DB
