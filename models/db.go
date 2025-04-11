@@ -5,17 +5,20 @@ import (
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	_ "modernc.org/sqlite" // Importa il driver SQLite compatibile con Go puro
 )
 
-var db *gorm.DB
+var DB *gorm.DB
 
-func initDB() {
+func InitDB() {
 	var err error
-	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
 	if err != nil {
-		log.Fatal("failed to connect to database:", err)
+		log.Fatalf("[error] failed to initialize database, got error %v", err)
 	}
 
-	db.AutoMigrate(&Post{}) // crea tabella se non esiste
+	// Auto migrate Post struct
+	err = DB.AutoMigrate(&Post{})
+	if err != nil {
+		log.Fatalf("[error] failed to migrate Post model, got error %v", err)
+	}
 }

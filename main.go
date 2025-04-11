@@ -1,28 +1,18 @@
 package main
 
 import (
-	"html/template"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
+	"text/template"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-playground/validator/v10"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-
-	_ "modernc.org/sqlite" // questo è importante per usare sqlite senza CGO
-)
-
-var (
-	db       *gorm.DB
-	validate *validator.Validate
-	funcMap  = template.FuncMap{
-		"add": func(a, b int) int { return a + b },
-		"sub": func(a, b int) int { return a - b },
-	}
 )
 
 type Post struct {
@@ -32,22 +22,21 @@ type Post struct {
 	Date    time.Time
 }
 
-func initDB() {
-	var err error
-	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
-	if err != nil {
-		log.Fatal("Errore apertura DB:", err)
+var (
+	posts    []Post
+	mu       sync.Mutex
+	validate *validator.Validate
+	funcMap  = template.FuncMap{
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
 	}
-
-	err = db.AutoMigrate(&Post{})
-	if err != nil {
-		log.Fatal("Errore nella migrazione:", err)
-	}
-}
+	db *gorm.DB
+)
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.New("home.html").Funcs(funcMap).ParseFiles("templates/home.html"))
 
+	// Pagina corrente
 	pageParam := r.URL.Query().Get("page")
 	if pageParam == "" {
 		pageParam = "1"
@@ -58,29 +47,26 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postsPerPage := 6
-	var posts []Post
-
-	// Recupera post ordinati per data decrescente
-	result := db.Order("date DESC").Offset((page - 1) * postsPerPage).Limit(postsPerPage).Find(&posts)
-	if result.Error != nil {
-		http.Error(w, "Errore nel recupero dei post", http.StatusInternalServerError)
-		return
+	mu.Lock()
+	start := (page - 1) * postsPerPage
+	end := start + postsPerPage
+	if end > len(posts) {
+		end = len(posts)
 	}
+	paginatedPosts := posts[start:end]
 
-	// Conta il numero totale di post
-	var total int64
-	db.Model(&Post{}).Count(&total)
-	totalPages := int((total + int64(postsPerPage) - 1) / int64(postsPerPage))
+	totalPages := (len(posts) + postsPerPage - 1) / postsPerPage
 	if totalPages == 0 {
 		totalPages = 1
 	}
+	mu.Unlock()
 
 	tmpl.Execute(w, struct {
 		Posts       []Post
 		CurrentPage int
 		TotalPages  int
 	}{
-		Posts:       posts,
+		Posts:       paginatedPosts,
 		CurrentPage: page,
 		TotalPages:  totalPages,
 	})
@@ -110,30 +96,41 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := db.Create(&newPost)
-	if result.Error != nil {
-		http.Error(w, "Errore nel salvataggio del post", http.StatusInternalServerError)
-		return
-	}
+	// Salva il nuovo post nel database
+	db.Create(&newPost)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+func initDB() {
+	var err error
+	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
+	if err != nil {
+		panic("Errore apertura DB:" + err.Error())
+	}
+
+	// Migrazione del database
+	err = db.AutoMigrate(&Post{})
+	if err != nil {
+		panic("Errore nella migrazione del database: " + err.Error())
+	}
+}
+
 func main() {
-	initDB()
-	validate = validator.New()
+	database, err := gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("[error] failed to initialize database, got error %v", err)
+	}
+
+	db.Migrate(database)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	fs := http.StripPrefix("/static/", http.FileServer(http.Dir("static")))
-	r.Handle("/static/*", fs)
+	r.Get("/", models.HomeHandler)
 
-	r.Get("/", homeHandler)
-	r.Get("/new", newPostFormHandler)
-	r.Post("/create", createPostHandler)
-
-	log.Println("Server avviato su http://localhost:8080")
-	http.ListenAndServe(":8080", r)
+	http.Handle("/", r)
+	fmt.Println("Server started at http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 }
