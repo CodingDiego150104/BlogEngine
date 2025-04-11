@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Blog</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" id="theme-style" href="">
+</head>
+<body>
+    <div class="navbar">
+        <div class="left">
+            <button onclick="toggleDarkMode()">🌗 Tema</button>
+        </div>
+        <div class="right">
+            <a href="/new"><button>➕ Nuovo Post</button></a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Benvenuto nel Blog</h1>
+
+        <div class="posts-container">
+            {{range .Posts}}
+                <div class="post">
+                    <h2>{{.Title}}</h2>
+                    <p>{{.Content}}</p>
+                    <small>Pubblicato il {{.Date.Format "02 Jan 2006 15:04"}}</small>
+                </div>
+            {{else}}
+                <p>Nessun post ancora.</p>
+            {{end}}
+        </div>
+
+        <div class="pagination">
+            {{if gt .CurrentPage 1}}
+                <a href="/?page={{sub .CurrentPage 1}}">← Pagina precedente</a>
+            {{end}}
+            <span>Pagina {{.CurrentPage}} di {{.TotalPages}}</span>
+            {{if lt .CurrentPage .TotalPages}}
+                <a href="/?page={{add .CurrentPage 1}}">Pagina successiva →</a>
+            {{end}}
+        </div>
+    </div>
+
+    <script>
+        const themeLink = document.getElementById("theme-style");
+
+        function toggleDarkMode() {
+            if (themeLink.href.includes("dark.css")) {
+                themeLink.href = "";
+                localStorage.setItem("theme", "light");
+            } else {
+                themeLink.href = "/static/dark.css";
+                localStorage.setItem("theme", "dark");
+            }
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem("theme") === "dark") {
+                themeLink.href = "/static/dark.css";
+            }
+        };
+    </script>
+</body>
+</html>

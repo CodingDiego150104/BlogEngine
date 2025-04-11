@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuovo Post</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" id="theme-style" href="">
+</head>
+<body>
+    <div class="navbar">
+        <div class="right">
+            <button onclick="toggleDarkMode()">🌗 Tema</button>
+        </div>
+        <div class="right">
+            <a href="/"><button>🏠 Home</button></a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Crea un nuovo post</h1>
+        <form action="/create" method="POST">
+            <label for="title">Titolo:</label>
+            <input type="text" id="title" name="title" required>
+
+            <label for="content">Contenuto:</label>
+            <textarea id="content" name="content" rows="5" required></textarea>
+
+            <button type="submit">✅ Pubblica</button>
+        </form>
+    </div>
+
+    <script>
+        const themeLink = document.getElementById("theme-style");
+
+        function toggleDarkMode() {
+            if (themeLink.href.includes("dark.css")) {
+                themeLink.href = "";
+                localStorage.setItem("theme", "light");
+            } else {
+                themeLink.href = "/static/dark.css";
+                localStorage.setItem("theme", "dark");
+            }
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem("theme") === "dark") {
+                themeLink.href = "/static/dark.css";
+            }
+        };
+    </script>
+</body>
+</html>
