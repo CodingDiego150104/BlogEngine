@@ -41,6 +41,6 @@ Serve Go installato (versione recente, tipo 1.18+)
 Clona il repo ed esegui:
 
 ```bash
-git clone https://github.com/Codingisjusteasy/BlogEngine.git
+git clone https://github.com/CodingDiego150104/BlogEngine.git
 cd BlogEngine
 go run main.go

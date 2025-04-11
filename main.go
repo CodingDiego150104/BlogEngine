@@ -40,7 +40,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	postsPerPage := 5
+	postsPerPage := 6
 	mu.Lock()
 	start := (page - 1) * postsPerPage
 	end := start + postsPerPage
@@ -48,7 +48,11 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		end = len(posts)
 	}
 	paginatedPosts := posts[start:end]
+
 	totalPages := (len(posts) + postsPerPage - 1) / postsPerPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
 	mu.Unlock()
 
 	tmpl.Execute(w, struct {
