@@ -1,121 +1,139 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"sync"
+	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	_ "modernc.org/sqlite" // questo è importante per usare sqlite senza CGO
 )
 
 var (
-	posts    []models.Post
-	mu       sync.Mutex
-	validate *validator.Validate
 	db       *gorm.DB
+	validate *validator.Validate
+	funcMap  = template.FuncMap{
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
+	}
 )
 
-func main() {
-	// Log to see if the main function is executed
-	fmt.Println("Avvio server")
-	log.Println("Starting server...")
-
-	initDB()         // Initialize the DB
-	defer db.Close() // Ensure the DB connection is closed at the end
-	validate = validator.New()
-
-	// Create the router
-	r := chi.NewRouter()
-
-	// Middleware
-	r.Use(chi.Middleware.Logger)    // Enable logging middleware
-	r.Use(chi.Middleware.Recoverer) // Enable recovery middleware
-
-	// Static file handling (CSS, JS, images)
-	fs := http.StripPrefix("/static/", http.FileServer(http.Dir("static")))
-	r.Handle("/static/*", fs)
-
-	// Define routes
-	r.Get("/", homeHandler)
-	r.Get("/new", newPostFormHandler)
-	r.Post("/create", createPostHandler)
-
-	// Log server startup
-	log.Println("Server is running at http://localhost:8080")
-
-	// Start the server
-	http.ListenAndServe(":8080", r)
+type Post struct {
+	ID      uint   `gorm:"primaryKey"`
+	Title   string `validate:"required"`
+	Content string `validate:"required"`
+	Date    time.Time
 }
 
 func initDB() {
 	var err error
-	// Open the SQLite database file (will create it if it doesn't exist)
 	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Error opening database: %v", err)
+		log.Fatal("Errore apertura DB:", err)
 	}
 
-	// Migrate the schema (create tables if they don't exist)
-	err = db.AutoMigrate(&models.Post{})
+	err = db.AutoMigrate(&Post{})
 	if err != nil {
-		log.Fatalf("Error migrating schema: %v", err)
+		log.Fatal("Errore nella migrazione:", err)
 	}
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
-	defer mu.Unlock()
+	tmpl := template.Must(template.New("home.html").Funcs(funcMap).ParseFiles("templates/home.html"))
 
-	// Fetch all posts from the database
-	if err := db.Find(&posts).Error; err != nil {
-		log.Printf("Error fetching posts: %v", err)
-		http.Error(w, "Error fetching posts", http.StatusInternalServerError)
+	pageParam := r.URL.Query().Get("page")
+	if pageParam == "" {
+		pageParam = "1"
+	}
+	page, err := strconv.Atoi(pageParam)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	postsPerPage := 6
+	var posts []Post
+
+	// Recupera post ordinati per data decrescente
+	result := db.Order("date DESC").Offset((page - 1) * postsPerPage).Limit(postsPerPage).Find(&posts)
+	if result.Error != nil {
+		http.Error(w, "Errore nel recupero dei post", http.StatusInternalServerError)
 		return
 	}
 
-	// Render the home page with the posts
-	tmpl := template.Must(template.ParseFiles("templates/home.html"))
-	tmpl.Execute(w, posts)
+	// Conta il numero totale di post
+	var total int64
+	db.Model(&Post{}).Count(&total)
+	totalPages := int((total + int64(postsPerPage) - 1) / int64(postsPerPage))
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	tmpl.Execute(w, struct {
+		Posts       []Post
+		CurrentPage int
+		TotalPages  int
+	}{
+		Posts:       posts,
+		CurrentPage: page,
+		TotalPages:  totalPages,
+	})
 }
 
 func newPostFormHandler(w http.ResponseWriter, r *http.Request) {
-	// Render the form for creating a new post
-	tmpl := template.Must(template.ParseFiles("templates/new_post.html"))
+	tmpl := template.Must(template.New("new.html").Funcs(funcMap).ParseFiles("templates/new.html"))
 	tmpl.Execute(w, nil)
 }
 
 func createPostHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse the form data
-	r.ParseForm()
-	title := r.FormValue("title")
-	body := r.FormValue("body")
-
-	// Validate the form data
-	post := models.Post{
-		Title: title,
-		Body:  body,
-	}
-
-	err := validate.Struct(post)
+	err := r.ParseForm()
 	if err != nil {
-		// Validation failed, show the form again with the errors
-		log.Printf("Validation failed: %v", err)
-		http.Redirect(w, r, "/new", http.StatusFound)
+		http.Error(w, "Errore nel parsing del form", http.StatusBadRequest)
 		return
 	}
 
-	// Save the new post to the database
-	if err := db.Create(&post).Error; err != nil {
-		log.Printf("Error saving post: %v", err)
-		http.Error(w, "Error saving post", http.StatusInternalServerError)
+	newPost := Post{
+		Title:   r.FormValue("title"),
+		Content: r.FormValue("content"),
+		Date:    time.Now(),
+	}
+
+	err = validate.Struct(newPost)
+	if err != nil {
+		http.Error(w, "Titolo e contenuto sono obbligatori", http.StatusBadRequest)
 		return
 	}
 
-	// Redirect to the home page after successful post creation
+	result := db.Create(&newPost)
+	if result.Error != nil {
+		http.Error(w, "Errore nel salvataggio del post", http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func main() {
+	initDB()
+	validate = validator.New()
+
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	fs := http.StripPrefix("/static/", http.FileServer(http.Dir("static")))
+	r.Handle("/static/*", fs)
+
+	r.Get("/", homeHandler)
+	r.Get("/new", newPostFormHandler)
+	r.Post("/create", createPostHandler)
+
+	log.Println("Server avviato su http://localhost:8080")
+	http.ListenAndServe(":8080", r)
 }
