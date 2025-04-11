@@ -1,4 +1,5 @@
 *.go linguist-detectable=true
-static/*.css linguist-vendored
-static/*.js linguist-vendored
-static/*.html linguist-vendored
+*.css linguist-vendored
+*.html linguist-vendored
+*.js linguist-vendored
+
