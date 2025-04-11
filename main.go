@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -119,6 +121,23 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+func open(url string) error { //funzione che permette di aprire un link nel browser
+	var cmd string
+	var param []string
+
+	switch runtime.GOOS { //prende il valore del sistema operativo
+	case "windows":
+		cmd = "cmd"
+		param = []string{"/c", "start"}
+	case "darwin": //macos
+		cmd = "open"
+	default: //linux e similari
+		cmd = "xdg-open"
+	}
+	param = append(param, url)
+	return exec.Command(cmd, param...).Start() //esegue il comando
+}
+
 func main() {
 	initDB()
 	validate = validator.New()
@@ -135,5 +154,6 @@ func main() {
 	r.Post("/create", createPostHandler)
 
 	log.Println("Server avviato su http://localhost:8080")
+	open("http://localhost:8080") //apre la pagina
 	http.ListenAndServe(":8080", r)
 }
