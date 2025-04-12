@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -11,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usa: blogctl [start|shutdown|restart]")
+		fmt.Println("Usa: blogctl [start|shutdown|restart|dbreset|backup]")
 		return
 	}
 
@@ -24,6 +25,16 @@ func main() {
 	case "restart":
 		shutdownServer()
 		time.Sleep(2 * time.Second) // Pausa tra stop e start
+		runGoModTidyIfNeeded()
+		startServer()
+	case "dbreset":
+		shutdownServer()
+		dbclean()
+		runGoModTidyIfNeeded()
+		startServer()
+	case "backup":
+		shutdownServer()
+		dbBackup()
 		runGoModTidyIfNeeded()
 		startServer()
 	default:
@@ -94,5 +105,51 @@ func shutdownServer() { // Spegne il server Go
 		} else {
 			fmt.Println("Server spento.")
 		}
+	}
+}
+
+func dbclean() {
+	if runtime.GOOS == "windows" {
+		err := os.Remove("blog.db")
+		if err != nil {
+			log.Println("Errore durante la cancellazione del database:", err)
+		} else {
+			fmt.Println("Database cancellato con successo")
+		}
+	} else {
+		cmd := exec.Command("rm", "blog.db")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Run()
+		if err != nil {
+			log.Println("Errore durante la cancellazione del database:", err)
+		} else {
+			fmt.Println("Database cancellato con successo")
+		}
+	}
+}
+
+func dbBackup() {
+
+	source, err := os.Open("blog.db")
+	if err != nil {
+		fmt.Println("Errore nell'apertura del database")
+	}
+
+	date := time.Now()
+	formatted_date := date.Format("01-02-2006 15-04-05")
+	formatted_date = formatted_date + ".db"
+	fmt.Println(formatted_date)
+
+	dest, err := os.Create(formatted_date)
+	if err != nil {
+		fmt.Println("Errore nella creazione del file di destinazione")
+	}
+
+	_, err = io.Copy(dest, source)
+	if err != nil {
+		fmt.Println("Errore nella creazione del backup")
+	} else {
+		fmt.Println("Backup creato con successo")
 	}
 }

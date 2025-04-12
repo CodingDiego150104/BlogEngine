@@ -81,6 +81,14 @@ Nel progetto è incluso un comando a riga di comando chiamato `blogctl`, che ti 
    ```bash
    blogctl restart
    ```
+4. **Cancellare il database**
+   ```bash
+   blogctl dbreset
+   ```
+5. **Effettuare un backup del database**
+   ```bash
+   blogctl backup
+   ```
 
 Il comando `blogctl start` avvia il server in una nuova finestra del terminale su **Windows** e in background su **Linux/macOS**, mentre `shutdown` e `restart` fermano il server in esecuzione.
 
