@@ -58,7 +58,7 @@ Il backend è scritto in Go usando librerie standard + alcune esterne:
 Clona il progetto, installa le dipendenze e avvia il server:
 
 ```bash
-git clone https://github.com/CodingDiego150104/BlogEngine.git
+git clone https://github.com/D13GOOOO/BlogEngine.git
 cd BlogEngine
 go mod tidy      # per scaricare tutte le dipendenze
 ```
