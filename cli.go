@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -11,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usa: blogctl [start|shutdown|restart|dbreset]")
+		fmt.Println("Usa: blogctl [start|shutdown|restart|dbreset|backup]")
 		return
 	}
 
@@ -29,6 +30,11 @@ func main() {
 	case "dbreset":
 		shutdownServer()
 		dbclean()
+		runGoModTidyIfNeeded()
+		startServer()
+	case "backup":
+		shutdownServer()
+		dbBackup()
 		runGoModTidyIfNeeded()
 		startServer()
 	default:
@@ -120,5 +126,30 @@ func dbclean() {
 		} else {
 			fmt.Println("Database cancellato con successo")
 		}
+	}
+}
+
+func dbBackup() {
+
+	source, err := os.Open("blog.db")
+	if err != nil {
+		fmt.Println("Errore nell'apertura del database")
+	}
+
+	date := time.Now()
+	formatted_date := date.Format("01-02-2006 15-04-05")
+	formatted_date = formatted_date + ".db"
+	fmt.Println(formatted_date)
+
+	dest, err := os.Create(formatted_date)
+	if err != nil {
+		fmt.Println("Errore nella creazione del file di destinazione")
+	}
+
+	_, err = io.Copy(dest, source)
+	if err != nil {
+		fmt.Println("Errore nella creazione del backup")
+	} else {
+		fmt.Println("Backup creato con successo")
 	}
 }
