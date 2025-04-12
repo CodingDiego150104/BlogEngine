@@ -7,6 +7,7 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
+	modernc.org/sqlite v1.37.0
 )
 
 require (
@@ -30,5 +31,4 @@ require (
 	modernc.org/libc v1.62.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.9.1 // indirect
-	modernc.org/sqlite v1.37.0 // indirect
 )

@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -16,7 +18,8 @@ import (
 	_ "modernc.org/sqlite" // questo è importante per usare sqlite senza CGO
 )
 
-var (
+var ( // variabili globali
+	// db è il puntatore al database
 	db       *gorm.DB
 	validate *validator.Validate
 	funcMap  = template.FuncMap{
@@ -25,14 +28,14 @@ var (
 	}
 )
 
-type Post struct {
+type Post struct { // struttura del post
 	ID      uint   `gorm:"primaryKey"`
 	Title   string `validate:"required"`
 	Content string `validate:"required"`
 	Date    time.Time
 }
 
-func initDB() {
+func initDB() { // funzione che inizializza il database
 	var err error
 	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
 	if err != nil {
@@ -45,7 +48,8 @@ func initDB() {
 	}
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func homeHandler(w http.ResponseWriter, r *http.Request) { // funzione che gestisce la pagina principale
+	// Controlla se il metodo è GET
 	tmpl := template.Must(template.New("home.html").Funcs(funcMap).ParseFiles("templates/home.html"))
 
 	pageParam := r.URL.Query().Get("page")
@@ -91,7 +95,8 @@ func newPostFormHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
-func createPostHandler(w http.ResponseWriter, r *http.Request) {
+func createPostHandler(w http.ResponseWriter, r *http.Request) { // funzione che gestisce la creazione di un nuovo post
+	// Controlla se il metodo è POST
 	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, "Errore nel parsing del form", http.StatusBadRequest)
@@ -119,7 +124,25 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+func open(url string) error { //funzione che permette di aprire un link nel browser
+	var cmd string
+	var param []string
+
+	switch runtime.GOOS { //prende il valore del sistema operativo
+	case "windows":
+		cmd = "cmd"
+		param = []string{"/c", "start"}
+	case "darwin": //macos
+		cmd = "open"
+	default: //linux e similari
+		cmd = "xdg-open"
+	}
+	param = append(param, url)
+	return exec.Command(cmd, param...).Start() //esegue il comando
+}
+
 func main() {
+	// Inizializza il database e il validatore
 	initDB()
 	validate = validator.New()
 
@@ -135,5 +158,6 @@ func main() {
 	r.Post("/create", createPostHandler)
 
 	log.Println("Server avviato su http://localhost:8080")
+	open("http://localhost:8080")
 	http.ListenAndServe(":8080", r)
 }
