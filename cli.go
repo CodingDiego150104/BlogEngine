@@ -116,9 +116,9 @@ func dbclean() {
 		cmd.Stderr = os.Stderr
 		err := cmd.Run()
 		if err != nil {
-			log.Println("Errore durante lo spegnimento del server:", err)
+			log.Println("Errore durante la cancellazione del database:", err)
 		} else {
-			fmt.Println("Server spento.")
+			fmt.Println("Database cancellato con successo")
 		}
 	}
 }
