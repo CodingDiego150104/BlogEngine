@@ -1,6 +1,8 @@
 package main
 
 import (
+	"blog/models"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -35,6 +37,8 @@ type Post struct { // struttura del post
 	Date    time.Time
 }
 
+var templates *template.Template
+
 func initDB() { // funzione che inizializza il database
 	var err error
 	db, err = gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
@@ -42,9 +46,22 @@ func initDB() { // funzione che inizializza il database
 		log.Fatal("Errore apertura DB:", err)
 	}
 
-	err = db.AutoMigrate(&Post{})
+	err = db.AutoMigrate(&models.Post{}, &models.Comment{})
 	if err != nil {
 		log.Fatal("Errore nella migrazione:", err)
+	}
+}
+
+func initTemplates() {
+	// Carica tutti i template HTML nella cartella "templates"
+	var err error
+	templates, err = template.New("base").Funcs(funcMap).ParseFiles(
+		"templates/home.html",
+		"templates/new.html",
+		"templates/post.html", // Aggiungi anche il template post.html
+	)
+	if err != nil {
+		log.Fatal("Errore nel caricamento dei template:", err)
 	}
 }
 
@@ -90,6 +107,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) { // funzione che gesti
 	})
 }
 
+// POST HANDLER
 func newPostFormHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.New("new.html").Funcs(funcMap).ParseFiles("templates/new.html"))
 	tmpl.Execute(w, nil)
@@ -124,6 +142,56 @@ func createPostHandler(w http.ResponseWriter, r *http.Request) { // funzione che
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// HANDLER COMMENTI
+func showPostHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "ID del post non valido", http.StatusBadRequest)
+		return
+	}
+
+	var post models.Post
+	if err := db.Preload("Comments").First(&post, id).Error; err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	err = templates.ExecuteTemplate(w, "post.html", post)
+	if err != nil {
+		http.Error(w, "Errore rendering template", http.StatusInternalServerError)
+	}
+}
+
+func addCommentHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "ID del post non valido", http.StatusBadRequest)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Errore nei dati del form", http.StatusBadRequest)
+		return
+	}
+
+	comment := models.Comment{
+		PostID:    uint(id),
+		Author:    r.FormValue("author"),
+		Content:   r.FormValue("content"),
+		CreatedAt: time.Now(),
+	}
+
+	if err := db.Create(&comment).Error; err != nil {
+		http.Error(w, "Errore salvataggio commento", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/post/%d", id), http.StatusSeeOther)
+}
+
+// REINDIRIZZAMENTO
 func open(url string) error { //funzione che permette di aprire un link nel browser
 	var cmd string
 	var param []string
@@ -141,9 +209,11 @@ func open(url string) error { //funzione che permette di aprire un link nel brow
 	return exec.Command(cmd, param...).Start() //esegue il comando
 }
 
+// MAIN
 func main() {
 	// Inizializza il database e il validatore
 	initDB()
+	initTemplates()
 	validate = validator.New()
 
 	r := chi.NewRouter()
@@ -156,6 +226,10 @@ func main() {
 	r.Get("/", homeHandler)
 	r.Get("/new", newPostFormHandler)
 	r.Post("/create", createPostHandler)
+
+	// Rotte per i singoli post e commenti
+	r.Get("/post/{id}", showPostHandler)
+	r.Post("/post/{id}/comment", addCommentHandler)
 
 	log.Println("Server avviato su http://localhost:8080")
 	open("http://localhost:8080")

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+    <head>
+        <meta charset="UTF-8">
+        <title>{{.Title}}</title>
+        <link rel="stylesheet" href="/static/style.css"> <!-- Link al file style.css -->
+        <link rel="stylesheet" href="/static/dark.css"> <!-- Link al file dark.css -->
+    </head>
+<body>
+
+    <h1>{{.Title}}</h1>
+    <p>{{.Content}}</p>
+    <hr>
+
+    <h2>Commenti</h2>
+    {{range .Comments}}
+        <div class="comment">
+            <div class="comment-author">{{.Author}}</div>
+            <div class="comment-date">{{.CreatedAt.Format "02/01/2006 15:04"}}</div>
+            <p>{{.Content}}</p>
+        </div>
+    {{else}}
+        <p>Nessun commento ancora. Sii il primo!</p>
+    {{end}}
+
+    <hr>
+    <h3>Aggiungi un commento</h3>
+    <form action="/post/{{.ID}}/comment" method="post">
+        <label for="author">Nome:</label>
+        <input type="text" id="author" name="author" required>
+
+        <label for="content">Commento:</label>
+        <textarea id="content" name="content" rows="4" required></textarea>
+
+        <button type="submit">Invia</button>
+    </form>
+
+    <p><a href="/">← Torna alla home</a></p>
+    <script>
+        const themeLink = document.getElementById("theme-style");
+
+        function toggleDarkMode() {
+            if (themeLink.href.includes("dark.css")) {
+                themeLink.href = "";
+                localStorage.setItem("theme", "light");
+            } else {
+                themeLink.href = "/static/dark.css";
+                localStorage.setItem("theme", "dark");
+            }
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem("theme") === "dark") {
+                themeLink.href = "/static/dark.css";
+            }
+        };
+    </script>   
+</body>
+</html>

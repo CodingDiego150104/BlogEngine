@@ -1,12 +1,13 @@
-package main
+package models
 
 import (
 	"time"
 )
 
 type Post struct {
-	ID      uint   `gorm:"primaryKey"`
-	Title   string `validate:"required"`
-	Content string `validate:"required"`
-	Date    time.Time
+	ID        uint   `gorm:"primaryKey"`
+	Title     string `gorm:"size:255;not null"`
+	Content   string `gorm:"type:text;not null"`
+	CreatedAt time.Time
+	Comments  []Comment `gorm:"foreignKey:PostID"`
 }

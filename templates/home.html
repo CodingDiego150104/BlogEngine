@@ -21,14 +21,14 @@
 
         <div class="posts-container">
             {{range .Posts}}
-                <div class="post">
-                    <h2>{{.Title}}</h2>
-                    <p>{{.Content}}</p>
-                    <small>Pubblicato il {{.Date.Format "02 Jan 2006 15:04"}}</small>
-                </div>
-            {{else}}
-                <p>Nessun post ancora.</p>
-            {{end}}
+            <div class="post">
+                <h2><a href="/post/{{.ID}}">{{.Title}}</a></h2> <!-- Link al post singolo -->
+                <p>{{.Content}}</p>
+                <small>Pubblicato il {{.Date.Format "02 Jan 2006 15:04"}}</small>
+            </div>
+        {{else}}
+            <p>Nessun post ancora.</p>
+        {{end}}
         </div>
 
         <div class="pagination">

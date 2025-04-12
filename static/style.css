@@ -115,3 +115,56 @@ form button:hover {
 .pagination span {
     margin: 0 10px;
 }
+
+/* Stile per i commenti */
+.comment {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.comment-author {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #333;
+}
+
+.comment-date {
+    font-size: 0.9em;
+    color: #777;
+    margin-top: 5px;
+}
+
+.comment-content {
+    margin-top: 10px;
+    font-size: 1em;
+    color: #555;
+}
+
+/* Stile per il form di aggiunta commento */
+form input, form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+}
+
+form button {
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+    background-color: #5cb85c;
+    color: white;
+    font-size: 1.1em;
+    cursor: pointer;
+    border: none;
+}
+
+form button:hover {
+    background-color: #4cae4c;
+}
