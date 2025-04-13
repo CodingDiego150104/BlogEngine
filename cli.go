@@ -1,6 +1,7 @@
 package main
 
 import (
+	"blog/models"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,9 @@ import (
 	"os/exec"
 	"runtime"
 	"time"
+
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -29,7 +33,7 @@ func main() {
 		startServer()
 	case "dbreset":
 		shutdownServer()
-		dbclean()
+		dbclean_updated()
 		runGoModTidyIfNeeded()
 		startServer()
 	case "backup":
@@ -151,5 +155,25 @@ func dbBackup() {
 		fmt.Println("Errore nella creazione del backup")
 	} else {
 		fmt.Println("Backup creato con successo")
+	}
+}
+
+func dbclean_updated() {
+	var err error
+	db, err := gorm.Open(sqlite.Open("blog.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Errore in apertura database", err)
+	}
+
+	err = db.AutoMigrate(&models.Post{}, &models.Comment{})
+	if err != nil {
+		log.Fatal("Errore nella migrazione", err)
+	}
+
+	var MaxId int
+	db.Model(&models.Post{}).Select("MAX(id)").Scan(&MaxId)
+
+	for i := 1; i <= MaxId; i++ {
+		db.Delete(models.Post{}, i)
 	}
 }
